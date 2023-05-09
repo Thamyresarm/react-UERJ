@@ -3,6 +3,9 @@ import "./App.css";
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth"
+import ChatRoom from "./components/ChatRoom";
+import SignIn from "./components/SignIn";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -20,6 +23,8 @@ const firestore = getFirestore(firebaseApp);
 
 function App() {
 
+  const [user] = useAuthState(auth);
+  
   return (
     <div className="App">
       <header>
@@ -33,7 +38,14 @@ function App() {
           </div>
         </div>
         <div className="user"></div>
-      </header>      
+      </header>
+      {
+        user ? (
+          <ChatRoom firestore={firestore} auth={auth} />
+        ) : (
+          <SignIn auth={auth} />
+        )
+      }
     </div>
   );
 }

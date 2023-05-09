@@ -1,11 +1,19 @@
 import ChatMessage from "./ChatMessage";
 
-function ChatRoom() {  
+
+function ChatRoom({firestore, auth}) {
+
+const messages = [];
+
   return (
     <>
       <div className="chat-room">
         <main>
-          <ChatMessage />
+          {
+            messages && messages.map((msg, index) => (
+              <ChatMessage key={index} message={msg} auth={auth} />
+            ))
+          }
         </main>
         <div className="form">
           <form>
