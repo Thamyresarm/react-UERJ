@@ -6,6 +6,7 @@ import { getFirestore } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth"
 import ChatRoom from "./components/ChatRoom";
 import SignIn from "./components/SignIn";
+import SignOut from "./components/SignOut";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -37,15 +38,9 @@ function App() {
             <h2>React Firebase Chat</h2>
           </div>
         </div>
-        <div className="user"></div>
+        <div className="user">{ <SignOut auth={auth} /> }</div>
       </header>
-      {
-        user ? (
-          <ChatRoom firestore={firestore} auth={auth} />
-        ) : (
-          <SignIn auth={auth} />
-        )
-      }
+      {user ? <ChatRoom firestore={firestore} auth={auth} /> : <SignIn auth={auth} />}
     </div>
   );
 }
