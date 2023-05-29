@@ -1,14 +1,18 @@
 import 'bulma/css/bulma.min.css';
 import './App.css';
-import sortBy from 'underscore/modules/sortBy.js'
-import { estadosBrasileiroSigla } from "./estados";
-import { useState } from "react";
+//import sortBy from 'underscore/modules/sortBy.js'
+//import { estadosBrasileiroSigla } from "./estados";
+import estados from "./estados.json";
+import municipios from "./municipios.json";
+import { useEffect, useState } from "react";
 
-const estadosBrasileiroOpcoes = sortBy(estadosBrasileiroSigla, "nome");
+//const estadosBrasileiroOpcoes = sortBy(estadosBrasileiroSigla, "nome");
 const valoresIniciaisDoFormulario = {
   nomeCompleto: "",
   email: "",
   estado: "",
+  municipio: "",
+  regiao: "",
 };
 
 const enviarFormulario = (event) => {
@@ -23,7 +27,90 @@ const enviarFormulario = (event) => {
 
 
 function App() {
+
+  const [regioes, setRegioes] = useState([]);
+  const [estadoFiltrado, setEstadoFiltrado] = useState([]);
+  const [municipioFiltrado, setMunicipioFiltrado] = useState([]);
   const [formValores, setFormValores] = useState(valoresIniciaisDoFormulario);
+
+  const bucarEstadosFiltradosPorRegiao = () => {
+    return new Promise((resolve, reject) => {
+      if (formValores.regiao === "") resolve([]);
+      fetch(
+        `https://servicodados.ibge.gov.br/api/v1/localidades/regioes/${formValores.regiao}/estados`
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          console.log(data);
+          resolve(data);
+        });
+    });
+  };
+
+  const buscarMunicipiosFiltradosPorEstado = () => {
+    return new Promise((resolve, reject) => {
+      if (formValores.regiao === "") resolve([]);
+      fetch(
+        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formValores.estado}/municipios`
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          console.log(data);
+          resolve(data);
+        });
+    });
+  };
+
+  useEffect(() => {
+    bucarEstadosFiltradosPorRegiao().then((estados) => {
+      setEstadoFiltrado(estados);
+      setMunicipioFiltrado([]);
+    });
+  }, [formValores.regiao]);
+
+  useEffect(() => {
+    buscarMunicipiosFiltradosPorEstado().then((municipios) =>
+      setMunicipioFiltrado(municipios)
+    );
+  }, [formValores.estado]);
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await fetch(
+        "https://servicodados.ibge.gov.br/api/v1/localidades/regioes?orderBy=nome"
+      );
+      const data = await response.json();
+      setRegioes(data);
+    };
+    fetchData();
+  }, []);
+
+  /*const buscarMunicipiosFiltradosPorEstado = () => {
+     const filtrados = municipios.filter(
+       (item) => item.microrregiao.mesorregiao.UF.id === Number(formValores.estado)
+     );
+     return filtrados;
+   };*/
+
+  /* const [municipioFiltrado, setMunicipioFiltrado] = useState(
+     buscarMunicipiosFiltradosPorEstado()
+   );*/
+
+  const botaoDesabilitado = () => {
+    const campos = Object.keys(formValores);
+    const camposPreenchidos = campos.filter((campo) => formValores[campo] !== "");
+    return campos.length > camposPreenchidos.length;
+  };
+
+  const [desabilitaBotao, setDesabilitaBotao] = useState(botaoDesabilitado());
+
+  useEffect(() => setDesabilitaBotao(botaoDesabilitado()), [formValores]);
+
+  /* useEffect(() => {
+     setMunicipioFiltrado(buscarMunicipiosFiltradosPorEstado());
+     setDesabilitaBotao(botaoDesabilitado());
+   }, [formValores]);*/
 
   const escutandoValorDosCampos = (event) => {
     const { name, value } = event.target;
@@ -34,6 +121,7 @@ function App() {
     event.preventDefault();
     setFormValores({ ...valoresIniciaisDoFormulario });
   };
+
 
   return (
     <>
@@ -60,13 +148,48 @@ function App() {
               <div className="column">
                 <div className="select">
                   <select
-                    name="estado" onChange={escutandoValorDosCampos}
-                    value={formValores.estado}
+                    name="regiao"
+                    onChange={escutandoValorDosCampos}
+                    value={formValores.regiao}
                   >
-                    <option value="">Escolha o Estado</option>
-                    {estadosBrasileiroOpcoes.map((estado, estadoIndex) => (
-                      <option value={estado.nome} key={estadoIndex}>
-                        {estado.nome}
+                    <option value="">Escolha a Região</option>
+                    {regioes.map((regiao) => (
+                      <option value={regiao.id} key={regiao.id}>
+                        {regiao.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="column">
+                <div className="select">
+                  <select
+                    name="estado"
+                    onChange={escutandoValorDosCampos}
+                    value={formValores.estado}
+                    disabled={estadoFiltrado.length === 0}
+                  >
+                    <option value="">Escolha o Estado({estadoFiltrado.length})</option>
+                    {estadoFiltrado.map((estado) => (
+                      <option value={estado.id} key={estado.id}>
+                        {estado.nome} ({estado.sigla})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="column">
+                <div className="select">
+                  <select
+                    name="municipio"
+                    onChange={escutandoValorDosCampos}
+                    value={formValores.municipio}
+                    disabled={municipioFiltrado.length === 0}
+                  >
+                    <option value="">Escolha o Município ({municipioFiltrado.length})</option>
+                    {municipioFiltrado.map((municipio) => (
+                      <option value={municipio.id} key={municipio.id}>
+                        {municipio.nome}
                       </option>
                     ))}
                   </select>
@@ -75,7 +198,7 @@ function App() {
             </div>
             <div className="columns">
               <div className="column">
-                <button className="button is-primary" type="submit">
+                <button className="button is-primary" type="submit" disabled={desabilitaBotao}>
                   Enviar
                 </button>
               </div>
