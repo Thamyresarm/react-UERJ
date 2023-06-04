@@ -1,120 +1,36 @@
 import 'bulma/css/bulma.min.css';
 import './App.css';
-//import sortBy from 'underscore/modules/sortBy.js'
-//import { estadosBrasileiroSigla } from "./estados";
-import estados from "./estados.json";
-import municipios from "./municipios.json";
-import { useEffect, useState } from "react";
+import { Columns, Column } from "./components/layout/Columns";
+import Section from "./components/layout/Section";
+import { useState, useEffect, useMemo } from "react"; // mais na frente vamos usar o useEffect e o useMemo
+import IBGEService from './services/ibge.service';
+import config from "./appConfigFormValidation";
+import Input from "./components/form/Input";
+import Select from "./components/form/Select";
+import validationFormFields from './utils/validationFormFields';
 
-//const estadosBrasileiroOpcoes = sortBy(estadosBrasileiroSigla, "nome");
 const valoresIniciaisDoFormulario = {
   nomeCompleto: "",
   email: "",
+  regiao: "",
   estado: "",
   municipio: "",
-  regiao: "",
 };
-
-const enviarFormulario = (event) => {
-  event.preventDefault();
-  console.log("Enviar formulário");
-  const form = event.target; //<- Pega os elementos do formulário
-  const formData = new FormData(form); // <- Pega os dados do formulário
-  const formJson = Object.fromEntries(formData); // Transforma em um objeto json os dado
-  // const formData = Object.fromEntries(new FormData(form)); <- refatoração
-  console.log(formJson);
-};
-
 
 function App() {
 
+  const [formValores, setFormValores] = useState(valoresIniciaisDoFormulario);
   const [regioes, setRegioes] = useState([]);
   const [estadoFiltrado, setEstadoFiltrado] = useState([]);
   const [municipioFiltrado, setMunicipioFiltrado] = useState([]);
-  const [formValores, setFormValores] = useState(valoresIniciaisDoFormulario);
-
-  const bucarEstadosFiltradosPorRegiao = () => {
-    return new Promise((resolve, reject) => {
-      if (formValores.regiao === "") resolve([]);
-      fetch(
-        `https://servicodados.ibge.gov.br/api/v1/localidades/regioes/${formValores.regiao}/estados`
-      )
-        .then((response) => response.json())
-        .then((data) => {
-          console.log(data);
-          resolve(data);
-        });
-    });
-  };
-
-  const buscarMunicipiosFiltradosPorEstado = () => {
-    return new Promise((resolve, reject) => {
-      if (formValores.regiao === "") resolve([]);
-      fetch(
-        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formValores.estado}/municipios`
-      )
-        .then((response) => response.json())
-        .then((data) => {
-          console.log(data);
-          resolve(data);
-        });
-    });
-  };
-
-  useEffect(() => {
-    bucarEstadosFiltradosPorRegiao().then((estados) => {
-      setEstadoFiltrado(estados);
-      setMunicipioFiltrado([]);
-    });
-  }, [formValores.regiao]);
-
-  useEffect(() => {
-    buscarMunicipiosFiltradosPorEstado().then((municipios) =>
-      setMunicipioFiltrado(municipios)
-    );
-  }, [formValores.estado]);
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const response = await fetch(
-        "https://servicodados.ibge.gov.br/api/v1/localidades/regioes?orderBy=nome"
-      );
-      const data = await response.json();
-      setRegioes(data);
-    };
-    fetchData();
-  }, []);
-
-  /*const buscarMunicipiosFiltradosPorEstado = () => {
-     const filtrados = municipios.filter(
-       (item) => item.microrregiao.mesorregiao.UF.id === Number(formValores.estado)
-     );
-     return filtrados;
-   };*/
-
-  /* const [municipioFiltrado, setMunicipioFiltrado] = useState(
-     buscarMunicipiosFiltradosPorEstado()
-   );*/
-
-  const botaoDesabilitado = () => {
-    const campos = Object.keys(formValores);
-    const camposPreenchidos = campos.filter((campo) => formValores[campo] !== "");
-    return campos.length > camposPreenchidos.length;
-  };
-
-  const [desabilitaBotao, setDesabilitaBotao] = useState(botaoDesabilitado());
-
-  useEffect(() => setDesabilitaBotao(botaoDesabilitado()), [formValores]);
-
-  /* useEffect(() => {
-     setMunicipioFiltrado(buscarMunicipiosFiltradosPorEstado());
-     setDesabilitaBotao(botaoDesabilitado());
-   }, [formValores]);*/
-
-  const escutandoValorDosCampos = (event) => {
-    const { name, value } = event.target;
-    setFormValores({ ...formValores, [name]: value })
+  const [validacaoForm, setvalidacaoForm] = useState(
+    validationFormFields(config, formValores)
+  );
+  const enviarFormulario = (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const formData = Object.fromEntries(new FormData(form));
+    console.log(formData);
   };
 
   const limparFormulario = (event) => {
@@ -122,96 +38,124 @@ function App() {
     setFormValores({ ...valoresIniciaisDoFormulario });
   };
 
+  const escutandoValorDosCampos = (event) => {
+    const { name, value } = event.target;
+    setFormValores({ ...formValores, [name]: value });
+  };
+
+  const ibgeService = useMemo(() => new IBGEService(), []);
+
+  useEffect(() => {
+    (async () => {
+      const data = await ibgeService.regioes();
+      setRegioes(data);
+    })();
+  }, [ibgeService]);
+
+  useEffect(() => {
+    (async () => {
+      setEstadoFiltrado(await ibgeService.estadosPorRegioes(formValores.regiao));
+      setMunicipioFiltrado([]);
+    })();
+  }, [formValores.regiao, ibgeService]);
+
+  useEffect(() => {
+    (async () => {
+      setMunicipioFiltrado(
+        await ibgeService.municipiosPorEstados(formValores.estado)
+      );
+    })();
+  }, [formValores.estado, ibgeService]);
+
+  useEffect(
+    () => setvalidacaoForm(validationFormFields(config, formValores)),
+    [formValores]
+  );
 
   return (
     <>
-      <section className="section">
-        <div className="container">
-          <h1 className="title">Formulário de Incrição</h1>
-          <p className="subtitle">Treinamento de React</p>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container">
-          <form onSubmit={enviarFormulario}>
-            <div className="columns">
-              <div className="column">
-                <label>Nome Completo</label>
-                <input value={formValores.nomeCompleto} onChange={escutandoValorDosCampos} className="input" type="text" placeholder="Nome Completo" name="nomeCompleto" />
-              </div>
-              <div className="column">
-                <label>E-mail</label>
-                <input value={formValores.email} onChange={escutandoValorDosCampos} className="input" type="email" placeholder="Seu melhor e-mail" name="email" />
-              </div>
-            </div>
-            <div className="columns">
-              <div className="column">
-                <div className="select">
-                  <select
-                    name="regiao"
-                    onChange={escutandoValorDosCampos}
-                    value={formValores.regiao}
-                  >
-                    <option value="">Escolha a Região</option>
-                    {regioes.map((regiao) => (
-                      <option value={regiao.id} key={regiao.id}>
-                        {regiao.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="column">
-                <div className="select">
-                  <select
-                    name="estado"
-                    onChange={escutandoValorDosCampos}
-                    value={formValores.estado}
-                    disabled={estadoFiltrado.length === 0}
-                  >
-                    <option value="">Escolha o Estado({estadoFiltrado.length})</option>
-                    {estadoFiltrado.map((estado) => (
-                      <option value={estado.id} key={estado.id}>
-                        {estado.nome} ({estado.sigla})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="column">
-                <div className="select">
-                  <select
-                    name="municipio"
-                    onChange={escutandoValorDosCampos}
-                    value={formValores.municipio}
-                    disabled={municipioFiltrado.length === 0}
-                  >
-                    <option value="">Escolha o Município ({municipioFiltrado.length})</option>
-                    {municipioFiltrado.map((municipio) => (
-                      <option value={municipio.id} key={municipio.id}>
-                        {municipio.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="columns">
-              <div className="column">
-                <button className="button is-primary" type="submit" disabled={desabilitaBotao}>
-                  Enviar
-                </button>
-              </div>
-              <div className="column">
-                <button className="button" type="reset" onClick={limparFormulario}>
-                  Limpar Formulário
-                </button>
-              </div>
-            </div>
-
-          </form>
-        </div>
-      </section>
+      <Section>
+        <h1 className="title">Formulário de Incrição</h1>
+        <p className="subtitle">Treinamento de React</p>
+      </Section>
+      <Section>
+        <form onSubmit={enviarFormulario}>
+          <Columns>
+            <Column> <Input
+              name="nomeCompleto"
+              label="Nome Completo"
+              placeholder="Nome Completo"
+              onChange={escutandoValorDosCampos}
+              value={formValores.nomeCompleto}
+              validation={validacaoForm}
+            /></Column>
+            <Column> <Input
+              name="email"
+              label="E-mail"
+              placeholder="Informe seu melhor e-mail"
+              onChange={escutandoValorDosCampos}
+              value={formValores.email}
+              validation={validacaoForm}
+            /></Column>
+          </Columns>
+          <Columns>
+            <Column> <Select
+              name="regiao"
+              label="Escolha uma região"
+              onChange={escutandoValorDosCampos}
+              value={formValores.regiao}
+              validation={validacaoForm}
+              options={regioes}
+              optionMap={{
+                value: "id",
+                label: "nome",
+              }}
+            /></Column>
+            <Column> <Select
+              name="estado"
+              label="Escolha um estado"
+              onChange={escutandoValorDosCampos}
+              value={formValores.estado}
+              validation={validacaoForm}
+              options={estadoFiltrado}
+              optionMap={{
+                value: "id",
+                label: "nome",
+              }}
+              disabled={estadoFiltrado.length === 0}
+            /></Column>
+            <Column> <Select
+              name="municipio"
+              label="Escolha um município"
+              onChange={escutandoValorDosCampos}
+              value={formValores.municipio}
+              validation={validacaoForm}
+              options={municipioFiltrado}
+              optionMap={{
+                value: "id",
+                label: "nome",
+              }}
+              disabled={municipioFiltrado.length === 0}
+            /></Column>
+          </Columns>
+          <Columns>
+            <Column>
+              <button
+                className="button mr-4 is-primary"
+                type="submit"
+                disabled={validacaoForm.submitDisabled}>
+                Enviar
+              </button>
+              <button
+                className="button"
+                type="reset"
+                onClick={limparFormulario}>
+                Limpar Formulário
+              </button>
+            </Column>
+          </Columns>
+        </form>
+      </Section>
     </>
   );
 }
