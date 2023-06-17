@@ -1,30 +1,27 @@
+
 import "./App.css";
-import MapHolder from "./components/MapHolder";
-import Wireframe from "./components/Wireframe";
-import MenuINPE from "./components/MenuINPE";
-import { useEffect, useState, useMemo } from "react";
-import INPEService from "./services/INPE.service";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import MapPage from "./pages/MapPage";
+import AboutPage from "./pages/AboutPage";
+import Navigation from "./components/Navigation";
+import CountryPage from "./pages/CountryPage";
+
 
 function App() {
-  const inpeService = useMemo(() => new INPEService(), []);
-  const [url, setUrl] = useState("");
-  const [geoJson, setGeoJson] = useState();
-
-  useEffect(() => {
-    (async () => {
-      if (url !== "") {
-        console.log(url);
-        let data = await inpeService.fetchData(url);
-        console.log(data);
-        setGeoJson(data);
-      }
-    })();
-  }, [url, inpeService]);
   return (
-    <Wireframe>
-      <MenuINPE onClick={(event) => setUrl(event)} activeUrl={url} />
-      <MapHolder geoJson={geoJson} />
-    </Wireframe>
+    <Router>
+      <div className="h-screen app">
+        <Navigation />
+        <main>
+          <Routes>
+            <Route exact path="/" element={<MapPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/country/:country" element={<CountryPage />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
 }
+
 export default App;
