@@ -36,3 +36,5 @@ function MapHolder({ geoJson, zoom, center, onBoundsChanged }) {
     </>
   );
 }
+
+export default MapHolder;
